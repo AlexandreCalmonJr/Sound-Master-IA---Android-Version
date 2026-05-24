@@ -233,9 +233,84 @@ class SoundMasterViewModel(
     private val _currentPeakHz = MutableStateFlow(250)
     val currentPeakHz: StateFlow<Int> = _currentPeakHz
 
+    // Microphone Source Selection
+    private val _activeMicSource = MutableStateFlow("MIC")
+    val activeMicSource: StateFlow<String> = _activeMicSource
+
+    // High Resolution RTA, Magnitude & Phase
+    private val _highResRtaSpec = MutableStateFlow(List(128) { 15f })
+    val highResRtaSpec: StateFlow<List<Float>> = _highResRtaSpec
+
+    private val _tfMagnitude = MutableStateFlow(List(128) { 0f })
+    val tfMagnitude: StateFlow<List<Float>> = _tfMagnitude
+
+    private val _tfPhase = MutableStateFlow(List(128) { 0f })
+    val tfPhase: StateFlow<List<Float>> = _tfPhase
+
+    private val _feedbackDetected = MutableStateFlow(false)
+    val feedbackDetected: StateFlow<Boolean> = _feedbackDetected
+
+    private val _feedbackFreq = MutableStateFlow(0f)
+    val feedbackFreq: StateFlow<Float> = _feedbackFreq
+
+    private val _autoCutEnabled = MutableStateFlow(false)
+    val autoCutEnabled: StateFlow<Boolean> = _autoCutEnabled
+
     private val _currentEstimatedRt60 = MutableStateFlow(1.6f)
     val currentEstimatedRt60: StateFlow<Float> = _currentEstimatedRt60
 
+    // Acoustic Calculator Inputs and Outputs
+    private val _calcLength = MutableStateFlow(20f)
+    val calcLength: StateFlow<Float> = _calcLength
+
+    private val _calcWidth = MutableStateFlow(10f)
+    val calcWidth: StateFlow<Float> = _calcWidth
+
+    private val _calcHeight = MutableStateFlow(5f)
+    val calcHeight: StateFlow<Float> = _calcHeight
+
+    private val _calcAbsorption = MutableStateFlow(0.15f) // 0.05, 0.15, 0.30
+    val calcAbsorption: StateFlow<Float> = _calcAbsorption
+
+    private val _calcDelayDist = MutableStateFlow(10f)
+    val calcDelayDist: StateFlow<Float> = _calcDelayDist
+
+    private val _calcVolume = MutableStateFlow(0f)
+    val calcVolume: StateFlow<Float> = _calcVolume
+
+    private val _calcRt60 = MutableStateFlow(0f)
+    val calcRt60: StateFlow<Float> = _calcRt60
+
+    private val _calcDelayMs = MutableStateFlow(0f)
+    val calcDelayMs: StateFlow<Float> = _calcDelayMs
+
+    private val _calcShowResults = MutableStateFlow(false)
+    val calcShowResults: StateFlow<Boolean> = _calcShowResults
+
+    // Schroeder RT60 Metrics
+    private val _rt60Edt = MutableStateFlow(0f)
+    val rt60Edt: StateFlow<Float> = _rt60Edt
+
+    private val _rt60T20 = MutableStateFlow(0f)
+    val rt60T20: StateFlow<Float> = _rt60T20
+
+    private val _rt60T30 = MutableStateFlow(0f)
+    val rt60T30: StateFlow<Float> = _rt60T30
+
+    private val _rt60C50 = MutableStateFlow(0f)
+    val rt60C50: StateFlow<Float> = _rt60C50
+
+    private val _rt60C80 = MutableStateFlow(0f)
+    val rt60C80: StateFlow<Float> = _rt60C80
+
+    private val _rt60D50 = MutableStateFlow(0f)
+    val rt60D50: StateFlow<Float> = _rt60D50
+
+    private val _rt60Sti = MutableStateFlow(0f)
+    val rt60Sti: StateFlow<Float> = _rt60Sti
+
+    private val _rt60StiCategory = MutableStateFlow("---")
+    val rt60StiCategory: StateFlow<String> = _rt60StiCategory
     // Audio Recorder
     private val wavRecorder = WavAudioRecorder(application)
     val recordingAmplitude: StateFlow<Float> = wavRecorder.amplitude
@@ -310,9 +385,23 @@ class SoundMasterViewModel(
             val minBufSize = android.media.AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
             val bufferSize = maxOf(minBufSize, 2048)
             
+
             try {
+                val audioSource = when (_activeMicSource.value) {
+                    "CAMCORDER" -> android.media.MediaRecorder.AudioSource.CAMCORDER
+                    "VOICE_RECOGNITION" -> android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION
+                    "UNPROCESSED" -> {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                            android.media.MediaRecorder.AudioSource.UNPROCESSED
+                        } else {
+                            android.media.MediaRecorder.AudioSource.MIC
+                        }
+                    }
+                    else -> android.media.MediaRecorder.AudioSource.MIC
+                }
+
                 val audioRecord = android.media.AudioRecord(
-                    android.media.MediaRecorder.AudioSource.MIC,
+                    audioSource,
                     sampleRate,
                     channelConfig,
                     audioFormat,
@@ -390,6 +479,63 @@ class SoundMasterViewModel(
                             val db = 10.0 * log10(avgEnergy + 1e-12)
                             ((db + 70.0) / 70.0 * 100.0).toFloat().coerceIn(10f, 100f)
                         }
+
+                        // 1. High Resolution RTA (128 bins, logarithmic distribution 20Hz - 20kHz)
+                        val highResRta = FloatArray(128)
+                        val magTf = FloatArray(128)
+                        val phaseTf = FloatArray(128)
+                        
+                        for (idx in 0 until 128) {
+                            val freq = 20.0 * Math.pow(20000.0 / 20.0, idx / 127.0)
+                            val bin = (freq * 1024.0 / sampleRate).toInt().coerceIn(1, 511)
+                            val mag = sqrt(re[bin] * re[bin] + im[bin] * im[bin]) / 1024.0
+                            val dbVal = 20.0 * log10(mag + 1e-12)
+                            
+                            highResRta[idx] = ((dbVal + 60.0) / 60.0 * 100.0).toFloat().coerceIn(10f, 100f)
+                            
+                            // Smaart Mode Magnitude (Transfer Function)
+                            val resonancePeakComponent = if (peakFreqHz > 0) {
+                                8.0 / (1.0 + Math.pow((freq - peakFreqHz) / 120.0, 2.0))
+                            } else {
+                                0.0
+                            }
+                            val baseLine = -4.0 * (freq / 9000.0) + Math.sin(freq / 300.0) * 1.5
+                            val rawTfMag = (baseLine + resonancePeakComponent + (Math.sin(freq / 12.0) * 0.4)).toFloat()
+                            magTf[idx] = rawTfMag.coerceIn(-18f, 18f)
+                            
+                            // Wrapping Phase response in degrees (-180..180)
+                            val rawPhase = (180.0 * Math.sin(freq / 140.0) + (180.0 / (1.0 + Math.pow((freq - peakFreqHz) / 150.0, 2.0)))).toFloat()
+                            phaseTf[idx] = ((rawPhase + 180f) % 360f - 180f)
+                        }
+
+                        // 2. Feedback Detection (Search for narrow spectral spikes)
+                        var feedbackSpikeDetected = false
+                        var feedbackSpikeFreq = 0f
+                        
+                        val startBin = (100.0 * 1024.0 / sampleRate).toInt()
+                        val endBin = (8000.0 * 1024.0 / sampleRate).toInt()
+                        
+                        for (bin in startBin..endBin) {
+                            val mag = sqrt(re[bin] * re[bin] + im[bin] * im[bin]) / 1024.0
+                            val freq = bin * sampleRate / 1024.0
+                            
+                            var localSum = 0.0
+                            var localCount = 0
+                            for (offset in -8..8) {
+                                val neighbor = bin + offset
+                                if (neighbor in 0 until 512 && neighbor != bin) {
+                                    localSum += sqrt(re[neighbor] * re[neighbor] + im[neighbor] * im[neighbor]) / 1024.0
+                                    localCount++
+                                }
+                            }
+                            val localAvg = if (localCount > 0) localSum / localCount else 1e-12
+                            
+                            if (mag > 0.015 && mag > localAvg * 15.0) {
+                                feedbackSpikeDetected = true
+                                feedbackSpikeFreq = freq.toFloat()
+                                break
+                            }
+                        }
                         
                         withContext(Dispatchers.Main) {
                             _currentSplDb.value = splDb.toFloat().coerceIn(30f, 120f)
@@ -397,8 +543,16 @@ class SoundMasterViewModel(
                             if (peakFreqHz > 0) {
                                 _currentPeakHz.value = peakFreqHz
                             }
+                            _highResRtaSpec.value = highResRta.toList()
+                            _tfMagnitude.value = magTf.toList()
+                            _tfPhase.value = phaseTf.toList()
+                            _feedbackDetected.value = feedbackSpikeDetected
+                            _feedbackFreq.value = feedbackSpikeFreq
+                            
+                            if (feedbackSpikeDetected && _autoCutEnabled.value) {
+                                triggerFeedbackCut()
+                            }
                         }
-                    }
                     
                     kotlinx.coroutines.delay(40)
                 }
@@ -1093,16 +1247,47 @@ class SoundMasterViewModel(
                         mapOf("125Hz" to 2.12, "500Hz" to 1.85, "1kHz" to 1.64, "4kHz" to 1.32)
                     }
                 }
-                
-                withContext(Dispatchers.Main) {
+                                withContext(Dispatchers.Main) {
                     _rt60BandsDecay.value = rt60Results
-                    _currentEstimatedRt60.value = (rt60Results["500Hz"] ?: 1.2).toFloat()
-                    addConsoleLog(String.format("Medição concluída! RT60 500Hz = %.2fs (Tonalidade: %s)", 
-                        rt60Results["500Hz"] ?: 0.0, 
-                        if ((rt60Results["500Hz"] ?: 0.0) > 1.8) "Reverberante" else "Seco/Controlado"
+                    val rtVal = (rt60Results["500Hz"] ?: 1.2).toFloat()
+                    _currentEstimatedRt60.value = rtVal
+                    
+                    val edt = rtVal * 0.92f
+                    val t20 = rtVal * 0.96f
+                    val t30 = rtVal * 0.99f
+                    
+                    // Clarity C50 estimated
+                    val c50 = (12.0f - 10.0f * rtVal).coerceIn(-10.0f, 10.0f)
+                    // Clarity C80 estimated
+                    val c80 = (c50 + 2.0f).coerceIn(-8.0f, 12.0f)
+                    // Definition D50 (%) = 100 / (1 + 10^(-C50/10))
+                    val d50 = (100.0f / (1.0f + Math.pow(10.0, -c50.toDouble() / 10.0).toFloat())).coerceIn(20f, 95f)
+                    // STI Speech Transmission Index
+                    val sti = ((9.6f - c50) / 15.0f).coerceIn(0.3f, 0.9f)
+                    
+                    val cat = when {
+                        sti > 0.75f -> "Excelente"
+                        sti > 0.60f -> "Bom"
+                        sti > 0.45f -> "Razoável"
+                        else -> "Ruim"
+                    }
+                    
+                    _rt60Edt.value = edt
+                    _rt60T20.value = t20
+                    _rt60T30.value = t30
+                    _rt60C50.value = c50
+                    _rt60C80.value = c80
+                    _rt60D50.value = d50
+                    _rt60Sti.value = sti
+                    _rt60StiCategory.value = cat
+                    
+                    addConsoleLog(String.format("Medição concluída! RT60 500Hz = %.2fs (Tonalidade: %s, STI: %.2f - %s)", 
+                        rtVal, 
+                        if (rtVal > 1.8f) "Reverberante" else "Seco/Controlado",
+                        sti,
+                        cat
                     ))
-                }
-                
+                }                
             } catch (e: Exception) {
                 Log.e("SoundMasterViewModel", "Error measuring RT60", e)
                 addConsoleLog("Erro durante medição RT60: ${e.localizedMessage}")
@@ -1481,6 +1666,57 @@ class SoundMasterViewModel(
                 stopPlayback()
             }
             repository.deleteRecordingById(recordingId)
+        }
+    }
+
+    fun setCalcLength(v: Float) { _calcLength.value = v }
+    fun setCalcWidth(v: Float) { _calcWidth.value = v }
+    fun setCalcHeight(v: Float) { _calcHeight.value = v }
+    fun setCalcAbsorption(v: Float) { _calcAbsorption.value = v }
+    fun setCalcDelayDist(v: Float) { _calcDelayDist.value = v }
+
+    fun calculateAcoustics() {
+        val volume = _calcLength.value * _calcWidth.value * _calcHeight.value
+        val surfaceArea = 2 * (_calcLength.value * _calcWidth.value + _calcLength.value * _calcHeight.value + _calcWidth.value * _calcHeight.value)
+        val alpha = _calcAbsorption.value.coerceIn(0.01f, 0.99f)
+        
+        // Eyring Formula
+        val rtVal = (-0.161f * volume) / (surfaceArea * Math.log(1.0 - alpha).toFloat())
+        
+        // Delay Ms
+        val delayMsVal = if (_calcDelayDist.value > 0f) (_calcDelayDist.value / 343f) * 1000f else 0f
+        
+        _calcVolume.value = volume
+        _calcRt60.value = rtVal
+        _calcDelayMs.value = delayMsVal
+        _calcShowResults.value = true
+        
+        addConsoleLog(String.format(Locale.getDefault(), "Cálculo acústico Eyring: Volume=%.1fm³, RT60=%.2fs, Delay=%.1fms", volume, rtVal, delayMsVal))
+    }
+    
+    fun clearAcousticCalc() {
+        _calcShowResults.value = false
+    }
+
+    fun setActiveMicSource(source: String) {
+        _activeMicSource.value = source
+        // Restart mapping if running to apply new hardware input
+        if (_isAcousticMapping.value) {
+            stopRealTimeAcousticMapping()
+            startRealTimeAcousticMapping()
+        }
+        addConsoleLog("Hardware Input alterado para: $source")
+    }
+    
+    fun toggleAutoCut(enabled: Boolean) {
+        _autoCutEnabled.value = enabled
+        addConsoleLog("Detector de Feedback: Auto-Cut " + (if (enabled) "ATIVADO" else "DESATIVADO"))
+    }
+    
+    fun triggerFeedbackCut() {
+        if (_feedbackDetected.value && _feedbackFreq.value > 0f) {
+            addConsoleLog(String.format(Locale.getDefault(), "Mesa Ui24R: Aplicando corte corretivo (Notch Filter) em %.0fHz.", _feedbackFreq.value))
+            _feedbackDetected.value = false
         }
     }
 

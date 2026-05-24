@@ -870,6 +870,33 @@ fun MeasureScreen(viewModel: SoundMasterViewModel) {
     val calibrationStatus by viewModel.calibrationStatus.collectAsStateWithLifecycle()
     val splOffset by viewModel.splOffset.collectAsStateWithLifecycle()
 
+    val edtVal by viewModel.rt60Edt.collectAsStateWithLifecycle()
+    val t20Val by viewModel.rt60T20.collectAsStateWithLifecycle()
+    val t30Val by viewModel.rt60T30.collectAsStateWithLifecycle()
+    val c50Val by viewModel.rt60C50.collectAsStateWithLifecycle()
+    val c80Val by viewModel.rt60C80.collectAsStateWithLifecycle()
+    val d50Val by viewModel.rt60D50.collectAsStateWithLifecycle()
+    val stiVal by viewModel.rt60Sti.collectAsStateWithLifecycle()
+    val stiCategory by viewModel.rt60StiCategory.collectAsStateWithLifecycle()
+
+    val calcLength by viewModel.calcLength.collectAsStateWithLifecycle()
+    val calcWidth by viewModel.calcWidth.collectAsStateWithLifecycle()
+    val calcHeight by viewModel.calcHeight.collectAsStateWithLifecycle()
+    val calcAbsorption by viewModel.calcAbsorption.collectAsStateWithLifecycle()
+    val calcDelayDist by viewModel.calcDelayDist.collectAsStateWithLifecycle()
+    val calcVolume by viewModel.calcVolume.collectAsStateWithLifecycle()
+    val calcRt60 by viewModel.calcRt60.collectAsStateWithLifecycle()
+    val calcDelayMs by viewModel.calcDelayMs.collectAsStateWithLifecycle()
+    val calcShowResults by viewModel.calcShowResults.collectAsStateWithLifecycle()
+
+    val activeMicSource by viewModel.activeMicSource.collectAsStateWithLifecycle()
+    val highResRtaSpec by viewModel.highResRtaSpec.collectAsStateWithLifecycle()
+    val tfMagnitude by viewModel.tfMagnitude.collectAsStateWithLifecycle()
+    val tfPhase by viewModel.tfPhase.collectAsStateWithLifecycle()
+    val feedbackDetected by viewModel.feedbackDetected.collectAsStateWithLifecycle()
+    val feedbackFreq by viewModel.feedbackFreq.collectAsStateWithLifecycle()
+    val autoCutEnabled by viewModel.autoCutEnabled.collectAsStateWithLifecycle()
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -894,6 +921,83 @@ fun MeasureScreen(viewModel: SoundMasterViewModel) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Voltar para o Início", color = GlowCyan, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // MICROPHONE SELECTOR
+        item {
+            var expanded by remember { mutableStateOf(false) }
+            val micLabel = when (activeMicSource) {
+                "CAMCORDER" -> "Microfone Camcorder"
+                "VOICE_RECOGNITION" -> "Reconhecimento de Voz"
+                "UNPROCESSED" -> "Unprocessed (Sem Processamento)"
+                else -> "Microfone Padrão (MIC)"
+            }
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(SpaceBlack.copy(alpha = 0.4f))
+                    .border(1.dp, CardLine.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Microfone",
+                        tint = GlowCyan,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "ENTRADA:",
+                        color = SoftGrey,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Box {
+                        Text(
+                            text = micLabel,
+                            color = GlowCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable { expanded = true }
+                        )
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                            modifier = Modifier.background(DarkSlate)
+                        ) {
+                            val options = listOf(
+                                Pair("MIC", "Microfone Padrão (MIC)"),
+                                Pair("CAMCORDER", "Microfone Camcorder"),
+                                Pair("VOICE_RECOGNITION", "Reconhecimento de Voz"),
+                                Pair("UNPROCESSED", "Unprocessed (Sem Processamento)")
+                            )
+                            options.forEach { (valStr, textStr) ->
+                                DropdownMenuItem(
+                                    text = { Text(textStr, color = BrightWhite, fontSize = 12.sp) },
+                                    onClick = {
+                                        viewModel.setActiveMicSource(valStr)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                Text(
+                    text = "FFT: 1024",
+                    color = SoftGrey,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
@@ -1159,6 +1263,389 @@ fun MeasureScreen(viewModel: SoundMasterViewModel) {
             }
         }
 
+
+        // CARD ANALISADOR DE ÁUDIO PRO (SMAART MODE)
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = DarkSlate),
+                border = BorderStroke(1.dp, CardLine.copy(alpha = 0.2f)),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.fillMaxWidth().testTag("audio_analyzer_pro_card")
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(GlowCyan.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Equalizer,
+                                contentDescription = "Smaart Mode",
+                                tint = GlowCyan
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Analisador de Áudio Pro",
+                                color = BrightWhite,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "Espectro em tempo real & Função de Transferência",
+                                color = SoftGrey,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 1. RTA Graph (Real Time Analyzer)
+                    Text(
+                        text = "RTA (REAL TIME ANALYZER) - ALTA RESOLUÇÃO",
+                        color = SoftGrey,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(SpaceBlack.copy(alpha = 0.6f))
+                            .border(1.dp, CardLine.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 6.dp)) {
+                            // Draw grid lines
+                            val gridCols = 5
+                            for (c in 1 until gridCols) {
+                                val gx = c * size.width / gridCols
+                                drawLine(
+                                    color = CardLine.copy(alpha = 0.2f),
+                                    start = Offset(gx, 0f),
+                                    end = Offset(gx, size.height),
+                                    strokeWidth = 1f
+                                )
+                            }
+                            val gridRows = 4
+                            for (r in 1 until gridRows) {
+                                val gy = r * size.height / gridRows
+                                drawLine(
+                                    color = CardLine.copy(alpha = 0.2f),
+                                    start = Offset(0f, gy),
+                                    end = Offset(size.width, gy),
+                                    strokeWidth = 1f
+                                )
+                            }
+
+                            // Draw RTA Curve
+                            if (highResRtaSpec.isNotEmpty()) {
+                                val rtaPath = androidx.compose.ui.graphics.Path()
+                                rtaPath.moveTo(0f, size.height)
+                                for (i in highResRtaSpec.indices) {
+                                    val px = i * size.width / (highResRtaSpec.size - 1)
+                                    val dbVal = highResRtaSpec[i]
+                                    val py = size.height - (dbVal - 10f) / 90f * size.height
+                                    rtaPath.lineTo(px, py)
+                                }
+                                rtaPath.lineTo(size.width, size.height)
+                                rtaPath.close()
+                                drawPath(
+                                    path = rtaPath,
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            NeonPurple.copy(alpha = 0.7f),
+                                            NeonPurple.copy(alpha = 0.05f)
+                                        )
+                                    )
+                                )
+                                
+                                // Draw RTA Stroke Line
+                                val strokePath = androidx.compose.ui.graphics.Path()
+                                for (i in highResRtaSpec.indices) {
+                                    val px = i * size.width / (highResRtaSpec.size - 1)
+                                    val dbVal = highResRtaSpec[i]
+                                    val py = size.height - (dbVal - 10f) / 90f * size.height
+                                    if (i == 0) strokePath.moveTo(px, py) else strokePath.lineTo(px, py)
+                                }
+                                drawPath(
+                                    path = strokePath,
+                                    color = NeonPurple,
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
+                                )
+                            }
+                        }
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("20Hz", color = SoftGrey, fontSize = 8.sp)
+                        Text("200Hz", color = SoftGrey, fontSize = 8.sp)
+                        Text("2kHz", color = SoftGrey, fontSize = 8.sp)
+                        Text("20kHz", color = SoftGrey, fontSize = 8.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 2. Magnitude Graph (Transfer Function)
+                    Text(
+                        text = "MAGNITUDE (TRANSFER FUNCTION)",
+                        color = SoftGrey,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(SpaceBlack.copy(alpha = 0.6f))
+                            .border(1.dp, CardLine.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 6.dp)) {
+                            // Draw grid lines
+                            val gridCols = 5
+                            for (c in 1 until gridCols) {
+                                val gx = c * size.width / gridCols
+                                drawLine(
+                                    color = CardLine.copy(alpha = 0.2f),
+                                    start = Offset(gx, 0f),
+                                    end = Offset(gx, size.height),
+                                    strokeWidth = 1f
+                                )
+                            }
+                            val gridRows = 4
+                            for (r in 1 until gridRows) {
+                                val gy = r * size.height / gridRows
+                                drawLine(
+                                    color = CardLine.copy(alpha = 0.2f),
+                                    start = Offset(0f, gy),
+                                    end = Offset(size.width, gy),
+                                    strokeWidth = 1f
+                                )
+                            }
+
+                            // Draw Magnitude Trace
+                            if (tfMagnitude.isNotEmpty()) {
+                                val magPath = androidx.compose.ui.graphics.Path()
+                                for (i in tfMagnitude.indices) {
+                                    val px = i * size.width / (tfMagnitude.size - 1)
+                                    val dbVal = tfMagnitude[i]
+                                    val py = (18f - dbVal) / 36f * size.height
+                                    if (i == 0) magPath.moveTo(px, py) else magPath.lineTo(px, py)
+                                }
+                                drawPath(
+                                    path = magPath,
+                                    color = GlowCyan,
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
+                                )
+                            }
+                        }
+                        
+                        // Scale label
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .background(SpaceBlack.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text("dB / Hz", color = GlowCyan, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("20Hz", color = SoftGrey, fontSize = 8.sp)
+                        Text("200Hz", color = SoftGrey, fontSize = 8.sp)
+                        Text("2kHz", color = SoftGrey, fontSize = 8.sp)
+                        Text("20kHz", color = SoftGrey, fontSize = 8.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 3. Phase Graph
+                    Text(
+                        text = "RESPOSTA DE FASE",
+                        color = SoftGrey,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(SpaceBlack.copy(alpha = 0.6f))
+                            .border(1.dp, CardLine.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 6.dp)) {
+                            // Draw grid lines
+                            val gridCols = 5
+                            for (c in 1 until gridCols) {
+                                val gx = c * size.width / gridCols
+                                drawLine(
+                                    color = CardLine.copy(alpha = 0.2f),
+                                    start = Offset(gx, 0f),
+                                    end = Offset(gx, size.height),
+                                    strokeWidth = 1f
+                                )
+                            }
+                            val gridRows = 4
+                            for (r in 1 until gridRows) {
+                                val gy = r * size.height / gridRows
+                                drawLine(
+                                    color = CardLine.copy(alpha = 0.2f),
+                                    start = Offset(0f, gy),
+                                    end = Offset(size.width, gy),
+                                    strokeWidth = 1f
+                                )
+                            }
+
+                            // Draw Phase Trace
+                            if (tfPhase.isNotEmpty()) {
+                                val phasePath = androidx.compose.ui.graphics.Path()
+                                for (i in tfPhase.indices) {
+                                    val px = i * size.width / (tfPhase.size - 1)
+                                    val phaseVal = tfPhase[i]
+                                    val py = (180f - phaseVal) / 360f * size.height
+                                    if (i == 0) phasePath.moveTo(px, py) else phasePath.lineTo(px, py)
+                                }
+                                drawPath(
+                                    path = phasePath,
+                                    color = Color(0xFFFFB300), // Amber color
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2.dp.toPx())
+                                )
+                            }
+                        }
+                        
+                        // Scale label
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .background(SpaceBlack.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text("Deg / Hz", color = Color(0xFFFFB300), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("20Hz", color = SoftGrey, fontSize = 8.sp)
+                        Text("200Hz", color = SoftGrey, fontSize = 8.sp)
+                        Text("2kHz", color = SoftGrey, fontSize = 8.sp)
+                        Text("20kHz", color = SoftGrey, fontSize = 8.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 4. Feedback Detector Layout
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "DETECTOR DE FEEDBACK",
+                            color = BrightWhite,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        // Auto-Cut Switch
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "AUTO-CUT",
+                                color = SoftGrey,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Switch(
+                                checked = autoCutEnabled,
+                                onCheckedChange = { viewModel.toggleAutoCut(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = GlowingError,
+                                    checkedTrackColor = GlowingError.copy(alpha = 0.4f),
+                                    uncheckedThumbColor = SoftGrey,
+                                    uncheckedTrackColor = SpaceBlack
+                                ),
+                                modifier = Modifier.scale(0.8f)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Feedback status banner
+                    if (feedbackDetected) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(GlowingError.copy(alpha = 0.15f))
+                                .border(1.dp, GlowingError.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                .padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = String.format(Locale.getDefault(), "🚨 REALIMENTAÇÃO DETECTADA EM %.0f Hz!", feedbackFreq),
+                                color = GlowingError,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Button(
+                                onClick = { viewModel.triggerFeedbackCut() },
+                                colors = ButtonDefaults.buttonColors(containerColor = GlowingError),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth().height(36.dp)
+                            ) {
+                                Text("CORTAR FREQUÊNCIA NA MESA", color = SpaceBlack, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                            }
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(NeonMint.copy(alpha = 0.1f))
+                                .border(1.dp, NeonMint.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "✓ SEM PICOS DE REALIMENTAÇÃO PERIGOSOS",
+                                color = NeonMint,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // CALIBRATION SECTOR IN MEASUREMENT FOR CLEAN WORKFLOW
         item {
             Card(
@@ -1288,6 +1775,449 @@ fun MeasureScreen(viewModel: SoundMasterViewModel) {
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
                         )
+                    }
+                }
+            }
+        }
+
+        // CARD SCHROEDER E PARÂMETROS ACÚSTICOS
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = DarkSlate),
+                border = BorderStroke(1.dp, CardLine.copy(alpha = 0.2f)),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.fillMaxWidth().testTag("schroeder_parameters_card")
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(GlowCyan.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TrendingUp,
+                                contentDescription = "Schroeder",
+                                tint = GlowCyan
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Schroeder & Parâmetros",
+                                color = BrightWhite,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "Inteligibilidade (STI) e tempos de decaimento",
+                                color = SoftGrey,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Grid 2x4 for EDT, T20, T30, RT60 and C50, C80, D50, STI
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // EDT
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(SpaceBlack.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, CardLine.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("EDT", color = SoftGrey, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (edtVal > 0f) String.format(Locale.US, "%.2fs", edtVal) else "--",
+                                    color = GlowCyan,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                            // T20
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(SpaceBlack.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, CardLine.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("T20", color = SoftGrey, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (t20Val > 0f) String.format(Locale.US, "%.2fs", t20Val) else "--",
+                                    color = NeonPurple,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                            // T30
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(SpaceBlack.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, CardLine.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("T30", color = SoftGrey, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (t30Val > 0f) String.format(Locale.US, "%.2fs", t30Val) else "--",
+                                    color = GlowingError,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                            // RT60 Final
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(SpaceBlack.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, CardLine.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("RT60", color = SoftGrey, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = String.format(Locale.US, "%.2fs", currentEstimatedRt60),
+                                    color = BrightWhite,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // C50
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(SpaceBlack.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, CardLine.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("C50", color = SoftGrey, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (c50Val != 0f) String.format(Locale.US, "%.1f dB", c50Val) else "--",
+                                    color = GlowCyan,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                            // C80
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(SpaceBlack.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, CardLine.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("C80", color = SoftGrey, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (c80Val != 0f) String.format(Locale.US, "%.1f dB", c80Val) else "--",
+                                    color = GlowCyan,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                            // D50
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(SpaceBlack.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, CardLine.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("D50", color = SoftGrey, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (d50Val > 0f) String.format(Locale.US, "%.0f%%", d50Val) else "--",
+                                    color = NeonMint,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                            // STI
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(SpaceBlack.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, CardLine.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("STI", color = SoftGrey, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (stiVal > 0f) String.format(Locale.US, "%.2f", stiVal) else "--",
+                                    color = GlowingError,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                                if (stiVal > 0f) {
+                                    Text(
+                                        text = stiCategory,
+                                        color = if (stiCategory == "Excelente" || stiCategory == "Bom") NeonMint else GlowingError,
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // CARD CALCULADORA FÍSICA (SABINE/EYRING)
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = DarkSlate),
+                border = BorderStroke(1.dp, CardLine.copy(alpha = 0.2f)),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.fillMaxWidth().testTag("acoustic_calculator_card")
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(NeonPurple.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Build,
+                                contentDescription = "Calculadora",
+                                tint = NeonPurple
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Calculadora Acústica",
+                                color = BrightWhite,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "Estimativa de RT60 por Sabine & Eyring",
+                                color = SoftGrey,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Input Sliders: Comprimento, Largura, Altura
+                    Text("Dimensões da Sala (metros):", color = SoftGrey, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Length Slider
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Comprimento: ${calcLength.toInt()}m", color = BrightWhite, fontSize = 11.sp, modifier = Modifier.width(110.dp))
+                        Slider(
+                            value = calcLength,
+                            onValueChange = { viewModel.setCalcLength(it) },
+                            valueRange = 5f..100f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = NeonPurple,
+                                activeTrackColor = NeonPurple,
+                                inactiveTrackColor = SpaceBlack
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Width Slider
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Largura: ${calcWidth.toInt()}m", color = BrightWhite, fontSize = 11.sp, modifier = Modifier.width(110.dp))
+                        Slider(
+                            value = calcWidth,
+                            onValueChange = { viewModel.setCalcWidth(it) },
+                            valueRange = 5f..100f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = NeonPurple,
+                                activeTrackColor = NeonPurple,
+                                inactiveTrackColor = SpaceBlack
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Height Slider
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Altura: ${calcHeight.toInt()}m", color = BrightWhite, fontSize = 11.sp, modifier = Modifier.width(110.dp))
+                        Slider(
+                            value = calcHeight,
+                            onValueChange = { viewModel.setCalcHeight(it) },
+                            valueRange = 2f..25f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = NeonPurple,
+                                activeTrackColor = NeonPurple,
+                                inactiveTrackColor = SpaceBlack
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Delay Distance Slider
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Dist. PA-Aux: ${calcDelayDist.toInt()}m", color = BrightWhite, fontSize = 11.sp, modifier = Modifier.width(110.dp))
+                        Slider(
+                            value = calcDelayDist,
+                            onValueChange = { viewModel.setCalcDelayDist(it) },
+                            valueRange = 0f..100f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = NeonPurple,
+                                activeTrackColor = NeonPurple,
+                                inactiveTrackColor = SpaceBlack
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Absorption selection buttons
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Absorção de Superfície Estimada (α):", color = SoftGrey, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    val absorptionOptions = listOf(
+                        0.05f to "Baixa (0.05)",
+                        0.15f to "Média (0.15)",
+                        0.30f to "Alta (0.30)"
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        absorptionOptions.forEach { (coeff, label) ->
+                            val isSel = calcAbsorption == coeff
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSel) NeonPurple else SpaceBlack.copy(alpha = 0.4f))
+                                    .border(1.dp, if (isSel) NeonPurple else CardLine.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                    .clickable { viewModel.setCalcAbsorption(coeff) }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSel) SpaceBlack else SoftGrey,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.calculateAcoustics() },
+                            colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(42.dp)
+                        ) {
+                            Text("CALCULAR ACÚSTICA", color = SpaceBlack, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        }
+
+                        if (calcShowResults) {
+                            Button(
+                                onClick = { viewModel.clearAcousticCalc() },
+                                colors = ButtonDefaults.buttonColors(containerColor = SpaceBlack.copy(alpha = 0.4f)),
+                                border = BorderStroke(1.dp, GlowingError),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.height(42.dp)
+                            ) {
+                                Text("LIMPAR", color = GlowingError, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+                        }
+                    }
+
+                    // Display results if active
+                    if (calcShowResults) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(SpaceBlack.copy(alpha = 0.5f))
+                                .border(1.dp, CardLine.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Volume Total:", color = SoftGrey, fontSize = 11.sp)
+                                Text(String.format(Locale.US, "%.0f m³", calcVolume), color = GlowCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("RT60 Estimado (Eyring):", color = SoftGrey, fontSize = 11.sp)
+                                Text(
+                                    String.format(Locale.US, "%.2fs", calcRt60),
+                                    color = if (calcRt60 > 1.6f) GlowingError else if (calcRt60 >= 1.4f) NeonMint else GlowCyan,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            if (calcDelayMs > 0f) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Atraso Auxiliares (Delay):", color = SoftGrey, fontSize = 11.sp)
+                                    Text(String.format(Locale.US, "%.1f ms", calcDelayMs), color = GlowCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Dica: Para igrejas, busque um RT60 entre 1.4s e 1.6s. Valores muito altos (reverb longo) embolam a inteligibilidade da pregação.",
+                                color = SoftGrey,
+                                fontSize = 10.sp,
+                                style = androidx.compose.ui.text.TextStyle(lineHeight = 13.sp)
+                            )
+                        }
                     }
                 }
             }
