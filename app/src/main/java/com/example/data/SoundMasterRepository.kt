@@ -226,4 +226,37 @@ class SoundMasterRepository(
             return@withContext false
         }
     }
+
+    suspend fun sendChatToAi(baseUrl: String, message: String, channel: Int? = null, aux: Int? = null): com.example.data.api.ChatResponse? = withContext(Dispatchers.IO) {
+        try {
+            val api = SoundMasterApiClient.getClient(baseUrl)
+            val request = com.example.data.api.ChatRequest(message = message, channel = channel, aux = aux)
+            val response = api.sendChatToAi(request)
+            if (response.isSuccessful) {
+                return@withContext response.body()
+            } else {
+                Log.e("SoundMasterRepository", "Chat error: ${response.code()}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("SoundMasterRepository", "Chat network exception", e)
+            null
+        }
+    }
+
+    suspend fun sendMixerCommand(baseUrl: String, command: Map<String, Any>): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val api = SoundMasterApiClient.getClient(baseUrl)
+            val response = api.sendMixerCommand(command)
+            if (response.isSuccessful) {
+                true
+            } else {
+                Log.e("SoundMasterRepository", "Mixer command error: ${response.code()}")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("SoundMasterRepository", "Mixer command network exception", e)
+            false
+        }
+    }
 }

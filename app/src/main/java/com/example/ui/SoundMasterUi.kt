@@ -1111,14 +1111,14 @@ fun MeasureScreen(viewModel: SoundMasterViewModel) {
                     // BUTTON SCAN TRIGGER
                     Button(
                         onClick = { viewModel.startAcousticMapping() },
-                        enabled = !isAcousticMapping,
+                        enabled = mappingProgress == 0f,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isAcousticMapping) NeonPurple.copy(alpha = 0.3f) else NeonPurple
+                            containerColor = if (mappingProgress > 0f) NeonPurple.copy(alpha = 0.3f) else NeonPurple
                         ),
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth().height(52.dp)
                     ) {
-                        if (isAcousticMapping) {
+                        if (mappingProgress > 0f) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1127,9 +1127,9 @@ fun MeasureScreen(viewModel: SoundMasterViewModel) {
                                     color = BrightWhite,
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.dp
-                                )
+                               )
                                 Text(
-                                    text = "ESCANEANDO AMBIENTE (${(mappingProgress * 100).toInt()}%)",
+                                    text = "SALVANDO COORDENADA...",
                                     color = BrightWhite,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp
