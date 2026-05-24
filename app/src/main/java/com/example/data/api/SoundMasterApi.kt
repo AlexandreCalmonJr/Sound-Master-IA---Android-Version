@@ -12,18 +12,18 @@ import java.util.concurrent.TimeUnit
 
 interface SoundMasterApi {
 
-    @GET("api/status")
+    @GET("status")
     suspend fun checkStatus(): Response<StatusResponse>
 
-    @GET("api/health")
+    @GET("health")
     suspend fun checkHealth(): Response<StatusResponse>
 
     // Fallback simple root check
-    @GET("/")
+    @GET(".")
     suspend fun checkRoot(): Response<ResponseBody>
 
     @Multipart
-    @POST("api/audio/process")
+    @POST("process")
     suspend fun processAudio(
         @Part file: MultipartBody.Part,
         @Part("effect") effect: RequestBody,
@@ -31,41 +31,18 @@ interface SoundMasterApi {
     ): Response<ResponseBody>
 
     @Multipart
-    @POST("api/audio/enhance")
+    @POST("enhance")
     suspend fun enhanceAudio(
         @Part file: MultipartBody.Part,
         @Part("effect") effect: RequestBody
     ): Response<ResponseBody>
 
     @Multipart
-    @POST("api/audio/transcribe")
+    @POST("transcribe")
     suspend fun transcribeAudio(
         @Part file: MultipartBody.Part
     ): Response<TranscriptionResponse>
-
-    @POST("api/ai")
-    suspend fun sendChatToAi(
-        @Body request: ChatRequest
-    ): Response<ChatResponse>
-
-    @POST("api/mixer/command")
-    suspend fun sendMixerCommand(
-        @Body command: Map<String, @JvmSuppressWildcards Any>
-    ): Response<ResponseBody>
 }
-
-data class ChatRequest(
-    val message: String,
-    val session_id: String = "default",
-    val channel: Int? = null,
-    val aux: Int? = null
-)
-
-data class ChatResponse(
-    val text: String,
-    val command: String? = null,
-    val commandDesc: String? = null
-)
 
 data class StatusResponse(
     val status: String = "online",
