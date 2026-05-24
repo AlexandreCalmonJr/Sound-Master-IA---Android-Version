@@ -1,0 +1,6 @@
+{
+  "name": "SoundMaster IA",
+  "description": "Aplicativo Android para o projeto SoundMaster_IA, permitindo gravação, reprodução e processamento de áudio em tempo real por meio de IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
